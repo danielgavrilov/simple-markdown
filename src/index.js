@@ -827,44 +827,6 @@ var TABLES = (function() {
 var LINK_INSIDE = "(?:\\[[^\\]]*\\]|[^\\[\\]]|\\](?=[^\\[]*\\]))*";
 var LINK_HREF_AND_TITLE =
         "\\s*<?((?:\\([^)]*\\)|[^\\s\\\\]|\\\\.)*?)>?(?:\\s+['\"]([\\s\\S]*?)['\"])?\\s*";
-var AUTOLINK_MAILTO_CHECK_R = /mailto:/i;
-
-/**
- * @param {SimpleMarkdown.Capture} capture
- * @param {SimpleMarkdown.State} state
- * @param {SimpleMarkdown.RefNode} refNode
- * @returns {SimpleMarkdown.RefNode}
- */
-var parseRef = function(capture, state, refNode /* : RefNode */) {
-    var ref = (capture[2] || capture[1])
-        .replace(/\s+/g, ' ')
-        .toLowerCase();
-
-    // We store information about previously seen defs on
-    // state._defs (_ to deconflict with client-defined
-    // state). If the def for this reflink/refimage has
-    // already been seen, we can use its target/source
-    // and title here:
-    if (state._defs && state._defs[ref]) {
-        var def = state._defs[ref];
-        // `refNode` can be a link or an image. Both use
-        // target and title properties.
-        refNode.target = def.target;
-        refNode.title = def.title;
-    }
-
-    // In case we haven't seen our def yet (or if someone
-    // overwrites that def later on), we add this node
-    // to the list of ref nodes for that def. Then, when
-    // we find the def, we can modify this link/image AST
-    // node :).
-    // I'm sorry.
-    state._refs = state._refs || {};
-    state._refs[ref] = state._refs[ref] || [];
-    state._refs[ref].push(refNode);
-
-    return refNode;
-};
 
 var currOrder = 0;
 /** @type {SimpleMarkdown.DefaultRules} */
@@ -885,8 +847,9 @@ var defaultRules /* : DefaultRules */ = {
                 var node = arr[i];
                 if (node.type === 'text') {
                     node = { type: 'text', content: node.content };
-                    for (; i + 1 < arr.length && arr[i + 1].type === 'text'; i++) {
-                        node.content += arr[i + 1].content;
+                    var nextNode = arr[i + 1]
+                    for (; i + 1 < arr.length && nextNode.type === 'text'; i++) {
+                        node.content += nextNode.content;
                     }
                 }
 
@@ -906,8 +869,9 @@ var defaultRules /* : DefaultRules */ = {
                 var node = arr[i];
                 if (node.type === 'text') {
                     node = { type: 'text', content: node.content };
-                    for (; i + 1 < arr.length && arr[i + 1].type === 'text'; i++) {
-                        node.content += arr[i + 1].content;
+                    var nextNode = arr[i + 1]
+                    for (; i + 1 < arr.length && nextNode.type === 'text'; i++) {
+                        node.content += nextNode.content;
                     }
                 }
 
@@ -915,43 +879,6 @@ var defaultRules /* : DefaultRules */ = {
             }
             return result;
         }
-    },
-    paragraph: {
-        order: currOrder++,
-        match: blockRegex(/^((?:[^\n]|\n(?! *\n))+)(?:\n *)+\n/),
-        parse: parseCaptureInline,
-        react: function(node, output, state) {
-            return reactElement(
-                'div',
-                state.key,
-                {
-                    className: 'paragraph',
-                    children: output(node.content, state)
-                }
-            );
-        },
-        html: function(node, output, state) {
-            var attributes = {
-                class: 'paragraph'
-            };
-            return htmlTag("div", output(node.content, state), attributes);
-        }
-    },
-    escape: {
-        order: currOrder++,
-        // We don't allow escaping numbers, letters, or spaces here so that
-        // backslashes used in plain text still get rendered. But allowing
-        // escaping anything else provides a very flexible escape mechanism,
-        // regardless of how this grammar is extended.
-        match: inlineRegex(/^\\([^0-9A-Za-z\s])/),
-        parse: function(capture, parse, state) {
-            return {
-                type: "text",
-                content: capture[1]
-            };
-        },
-        react: null,
-        html: null
     },
     url: {
         order: currOrder++,
@@ -1076,30 +1003,9 @@ var defaultRules /* : DefaultRules */ = {
             return htmlTag("strong", output(node.content, state));
         }
     },
-    u: {
-        order: currOrder++ /* same as em&strong; increment for next rule */,
-        match: inlineRegex(/^__((?:\\[\s\S]|[^\\])+?)__(?!_)/),
-        quality: function(capture) {
-            // precedence by length, loses all ties
-            return capture[0].length;
-        },
-        parse: parseCaptureInline,
-        react: function(node, output, state) {
-            return reactElement(
-                'u',
-                state.key,
-                {
-                    children: output(node.content, state)
-                }
-            );
-        },
-        html: function(node, output, state) {
-            return htmlTag("u", output(node.content, state));
-        }
-    },
     br: {
         order: currOrder++,
-        match: anyScopeRegex(/^ {2,}\n/),
+        match: anyScopeRegex(/^\n/),
         parse: ignoreCapture,
         react: function(node, output, state) {
             return reactElement(
@@ -1119,7 +1025,7 @@ var defaultRules /* : DefaultRules */ = {
         // We break on any symbol characters so that this grammar
         // is easy to extend without needing to modify this regex
         match: anyScopeRegex(
-            /^[\s\S]+?(?=[^0-9A-Za-z\s\u00c0-\uffff]|\n\n| {2,}\n|\w+:\S|$)/
+            /^[\s\S]+?(?=[^0-9A-Za-z\s\u00c0-\uffff]|\n|\w+:\S|$)/
         ),
         parse: function(capture, parse, state) {
             return {

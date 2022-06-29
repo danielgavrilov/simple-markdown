@@ -18,10 +18,32 @@ export interface Capture extends Array<string> {
 type Attr = string | number | boolean | null | undefined;
 export type TableAlignment = "right" | "center" | "left" | null;
 
-export interface SingleASTNode {
-    type: string,
-    [prop: string]: any,
+export type TextNode = {
+    type: "text",
+    content: string,
 }
+
+export type BrNode = {
+    type: "br",
+}
+
+export type NestedNode = {
+    type: "strong" | "em",
+    content: ASTNode,
+}
+
+export type LinkNode = {
+    type: "link",
+    target: string,
+    title?: string,
+    content: ASTNode
+}
+
+export type TableNode = {
+    type: "table" | "tableSeparator",
+}
+
+export type SingleASTNode = TextNode | BrNode | NestedNode | LinkNode | TableNode;
 
 export interface UnTypedASTNode {
     [prop: string]: any
@@ -182,13 +204,10 @@ export type DefaultInOutRule = SingleNodeParserRule & ElementReactOutputRule & N
 type DefaultRulesIndexer = ReactRules & HtmlRules;
 export interface DefaultRules extends DefaultRulesIndexer {
     readonly Array: DefaultArrayRule,
-    readonly paragraph: DefaultInOutRule,
-    readonly escape: DefaultInRule,
     readonly url: DefaultInRule,
     readonly link: DefaultInOutRule,
     readonly em: DefaultInOutRule,
     readonly strong: DefaultInOutRule,
-    readonly u: DefaultInOutRule,
     readonly br: DefaultInOutRule,
     readonly text: TextInOutRule,
 }
