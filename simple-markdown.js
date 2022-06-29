@@ -694,8 +694,9 @@ var defaultRules /* : DefaultRules */ = {
                 var node = arr[i];
                 if (node.type === 'text') {
                     node = { type: 'text', content: node.content };
-                    for (; i + 1 < arr.length && arr[i + 1].type === 'text'; i++) {
-                        node.content += arr[i + 1].content;
+                    var nextNode = arr[i + 1];
+                    for (; i + 1 < arr.length && nextNode.type === 'text'; i++) {
+                        node.content += nextNode.content;
                     }
                 }
 
@@ -715,8 +716,9 @@ var defaultRules /* : DefaultRules */ = {
                 var node = arr[i];
                 if (node.type === 'text') {
                     node = { type: 'text', content: node.content };
-                    for (; i + 1 < arr.length && arr[i + 1].type === 'text'; i++) {
-                        node.content += arr[i + 1].content;
+                    var nextNode = arr[i + 1];
+                    for (; i + 1 < arr.length && nextNode.type === 'text'; i++) {
+                        node.content += nextNode.content;
                     }
                 }
 
@@ -724,43 +726,6 @@ var defaultRules /* : DefaultRules */ = {
             }
             return result;
         }
-    },
-    paragraph: {
-        order: currOrder++,
-        match: blockRegex(/^((?:[^\n]|\n(?! *\n))+)(?:\n *)+\n/),
-        parse: parseCaptureInline,
-        react: function(node, output, state) {
-            return reactElement(
-                'div',
-                state.key,
-                {
-                    className: 'paragraph',
-                    children: output(node.content, state)
-                }
-            );
-        },
-        html: function(node, output, state) {
-            var attributes = {
-                class: 'paragraph'
-            };
-            return htmlTag("div", output(node.content, state), attributes);
-        }
-    },
-    escape: {
-        order: currOrder++,
-        // We don't allow escaping numbers, letters, or spaces here so that
-        // backslashes used in plain text still get rendered. But allowing
-        // escaping anything else provides a very flexible escape mechanism,
-        // regardless of how this grammar is extended.
-        match: inlineRegex(/^\\([^0-9A-Za-z\s])/),
-        parse: function(capture, parse, state) {
-            return {
-                type: "text",
-                content: capture[1]
-            };
-        },
-        react: null,
-        html: null
     },
     url: {
         order: currOrder++,
@@ -885,30 +850,9 @@ var defaultRules /* : DefaultRules */ = {
             return htmlTag("strong", output(node.content, state));
         }
     },
-    u: {
-        order: currOrder++ /* same as em&strong; increment for next rule */,
-        match: inlineRegex(/^__((?:\\[\s\S]|[^\\])+?)__(?!_)/),
-        quality: function(capture) {
-            // precedence by length, loses all ties
-            return capture[0].length;
-        },
-        parse: parseCaptureInline,
-        react: function(node, output, state) {
-            return reactElement(
-                'u',
-                state.key,
-                {
-                    children: output(node.content, state)
-                }
-            );
-        },
-        html: function(node, output, state) {
-            return htmlTag("u", output(node.content, state));
-        }
-    },
     br: {
         order: currOrder++,
-        match: anyScopeRegex(/^ {2,}\n/),
+        match: anyScopeRegex(/^\n/),
         parse: ignoreCapture,
         react: function(node, output, state) {
             return reactElement(
@@ -928,7 +872,7 @@ var defaultRules /* : DefaultRules */ = {
         // We break on any symbol characters so that this grammar
         // is easy to extend without needing to modify this regex
         match: anyScopeRegex(
-            /^[\s\S]+?(?=[^0-9A-Za-z\s\u00c0-\uffff]|\n\n| {2,}\n|\w+:\S|$)/
+            /^[\s\S]+?(?=[^0-9A-Za-z\s\u00c0-\uffff]|\n|\w+:\S|$)/
         ),
         parse: function(capture, parse, state) {
             return {
